@@ -8,8 +8,8 @@ function Utils.error(level, str, ...)
 end
 
 --- Does a shallow copy of a table and appends it to a target table.
--- @param orig Table to copy
--- @param target Table to append to
+--- @param orig table Table to copy
+--- @param target table Table to append to
 function Utils.shallowCopy(orig, target)
    for key, value in pairs(orig) do
       target[key] = value
@@ -18,12 +18,12 @@ function Utils.shallowCopy(orig, target)
    return target
 end
 
---- Requires files and puts them in a table.
--- Accepts a table of paths to Lua files: {"path/to/file_1", "path/to/another/file_2", "etc"}
--- Accepts a path to a directory with Lua files: "my_files/here"
--- @param pathOrFiles The table of paths or a path to a directory.
--- @param namespace A table that will hold the required files
--- @treturn table The namespace table
+--- Requires files and puts them in a table. (recursive)
+--- Accepts a table of paths to Lua files: {"path/to/file_1", "path/to/another/file_2", "etc"}
+--- Accepts a path to a directory with Lua files: "my_files/here"
+--- @param pathOrFiles string|table The table of paths or a path to a directory.
+--- @param namespace table A table that will hold the required files
+--- @return table The namespace table
 function Utils.loadNamespace(pathOrFiles, namespace)
    if type(pathOrFiles) ~= "string" and type(pathOrFiles) ~= "table" then
        Utils.error(2, "bad argument #1 to 'loadNamespace' (string/table of strings expected, got %s)", type(pathOrFiles))

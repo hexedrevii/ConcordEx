@@ -1,50 +1,57 @@
---- A pure data container that is contained by a single entity.
--- @classmod Component
+local PATH       = (...):gsub('%.[^%.]+$', '')
 
-local PATH = (...):gsub('%.[^%.]+$', '')
+local Components = require(PATH .. ".components")
+local Utils      = require(PATH .. ".utils")
 
-local Components = require(PATH..".components")
-local Utils      = require(PATH..".utils")
-
-local Component = {}
-Component.__mt = {
-   __index = Component,
+---@class Component
+---@field private __populate function
+---@field private __name string
+---@field private __isComponentClass boolean
+---@field private __isComponent boolean
+---@field private __componentClass boolean
+---@field private __entity Entity
+---@field value any
+local Component  = {}
+Component.__mt   = {
+    __index = Component,
 }
 
 --- Creates a new ComponentClass.
--- @tparam function populate Function that populates a Component with values
--- @treturn Component A new ComponentClass
+--- @param populate fun(c: ComponentClass, ...) Function that populates a Component with values
+--- @return ComponentClass A new ComponentClass
 function Component.new(name, populate)
-   if (type(name) ~= "string") then
-      Utils.error(2, "bad argument #1 to 'Component.new' (string expected, got %s)", type(name))
-   end
+    if (type(name) ~= "string") then
+        Utils.error(2, "bad argument #1 to 'Component.new' (string expected, got %s)", type(name))
+    end
 
-   if (string.match(name, Components.__REJECT_MATCH) ~= "") then
-      Utils.error(2, "bad argument #1 to 'Component.new' (Component names can't start with '%s', got %s)", Components.__REJECT_PREFIX, name)
-   end
+    if (string.match(name, Components.__REJECT_MATCH) ~= "") then
+        Utils.error(2, "bad argument #1 to 'Component.new' (Component names can't start with '%s', got %s)",
+            Components.__REJECT_PREFIX, name)
+    end
 
-   if (rawget(Components, name)) then
-      Utils.error(2, "bad argument #1 to 'Component.new' (ComponentClass with name '%s' was already registerd)", name) -- luacheck: ignore
-   end
+    if (rawget(Components, name)) then
+        Utils.error(2, "bad argument #1 to 'Component.new' (ComponentClass with name '%s' was already registerd)", name) -- luacheck: ignore
+    end
 
-   if (type(populate) ~= "function" and type(populate) ~= "nil") then
-      Utils.error(2, "bad argument #1 to 'Component.new' (function/nil expected, got %s)", type(populate))
-   end
+    if (type(populate) ~= "function" and type(populate) ~= "nil") then
+        Utils.error(2, "bad argument #1 to 'Component.new' (function/nil expected, got %s)", type(populate))
+    end
 
-   local componentClass = setmetatable({
-      __populate = populate,
+    ---@class ComponentClass : Component
+    local componentClass = setmetatable({
+        __populate         = populate,
 
-      __name             = name,
-      __isComponentClass = true,
-   }, Component.__mt)
+        __name             = name,
+        __isComponentClass = true,
+    }, Component.__mt)
 
-   componentClass.__mt = {
-      __index = componentClass
-   }
+    componentClass.__mt = {
+        __index = componentClass
+    }
 
-   Components[name] = componentClass
+    Components[name] = componentClass
 
-   return componentClass
+    return componentClass
 end
 
 -- Internal: Populates a Component with values.
@@ -57,64 +64,63 @@ end
 
 -- Callback: When the Component gets serialized as part of an Entity.
 function Component:serialize()
-   local data = Utils.shallowCopy(self, {})
+    local data = Utils.shallowCopy(self, {})
 
-   --This values shouldn't be copied over
-   data.__componentClass   = nil
-   data.__entity           = nil
-   data.__isComponent      = nil
-   data.__isComponentClass = nil
+    -- These values shouldn't be copied over
+    data.__componentClass   = nil
+    data.__entity           = nil
+    data.__isComponent      = nil
+    data.__isComponentClass = nil
 
-   return data
+    return data
 end
 
 -- Callback: When the Component gets deserialized from serialized data.
 function Component:deserialize(data)
-   Utils.shallowCopy(data, self)
+    Utils.shallowCopy(data, self)
 end
 
 -- Internal: Creates a new Component.
--- @param entity The Entity that will receive this Component.
--- @return A new Component
+--- @param entity Entity The Entity that will receive this Component.
+--- @return Component
 function Component:__new(entity)
-   local component = setmetatable({
-      __componentClass = self,
+    local component = setmetatable({
+        __componentClass   = self,
 
-      __entity           = entity,
-      __isComponent      = true,
-      __isComponentClass = false,
-   }, self.__mt)
+        __entity           = entity,
+        __isComponent      = true,
+        __isComponentClass = false,
+    }, self.__mt)
 
-   return component
+    return component
 end
 
 -- Internal: Creates and populates a new Component.
--- @param entity The Entity that will receive this Component.
--- @param ... Varargs passed to the populate function
--- @return A new populated Component
+--- @param entity Entity The Entity that will receive this Component.
+--- @return Component
 function Component:__initialize(entity, ...)
-   local component = self:__new(entity)
+    local component = self:__new(entity)
 
-   ---@diagnostic disable-next-line: redundant-parameter
-   self.__populate(component, ...)
+    ---@diagnostic disable-next-line: redundant-parameter
+    self.__populate(component, ...)
 
-   return component
+    return component
 end
 
 --- Returns true if the Component has a name.
--- @treturn boolean
+--- @return boolean
 function Component:hasName()
-   return self.__name and true or false
+    return self.__name and true or false
 end
 
 --- Returns the name of the Component.
--- @treturn string
+--- @return string
 function Component:getName()
-   return self.__name
+    return self.__name
 end
 
 return setmetatable(Component, {
-   __call = function(_, ...)
-      return Component.new(...)
-   end,
+    __call = function(_, ...)
+        return Component.new(...)
+    end,
 })

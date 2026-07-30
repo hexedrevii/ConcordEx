@@ -1,6 +1,5 @@
 --- Used to filter Entities with specific Components
--- A Filter has an associated Pool that can contain any amount of Entities.
--- @classmod Filter
+--- A Filter has an associated Pool that can contain any amount of Entities.
 
 local PATH = (...):gsub('%.[^%.]+$', '')
 
@@ -10,16 +9,22 @@ local Utils      = require(PATH..".utils")
 local Components = require(PATH..".components")
 
 
+---@class Filter
+---@field pool List<Entity>
+---@field private __filter table
+---@field private __name string?
+---@field private __isFilter boolean
 local Filter = {}
 Filter.__mt = {
    __index = Filter,
 }
 
 --- Validates a Filter Definition to make sure every component is valid.
--- @string name Name for the Filter.
--- @tparam table definition Table containing the Filter Definition
--- @tparam onComponent Optional function, called when a component is valid.
-function Filter.validate (errorLevel, name, def, onComponent)
+---@param errorLevel number Error level offset for the error message
+---@param name? string Name for the Filter.
+---@param def table Table containing the Filter Definition
+---@param onComponent? function Optional function, called when a component is valid.
+function Filter.validate(errorLevel, name, def, onComponent)
    local filter = "World:query filter"
    if name then
       filter = ("filter '%s'"):format(name)
@@ -46,14 +51,13 @@ function Filter.validate (errorLevel, name, def, onComponent)
    end
 end
 
---- Parses the Filter Defintion into two tables
--- required: An array of all the required component names.
--- rejected: An array of all the components that will be rejected.
--- @string name Name for the Filter.
--- @tparam table definition Table containing the Filter Definition
--- @treturn table required
--- @treturn table rejected
-function Filter.parse (name, def)
+--- Parses the Filter Definition into an array.
+--- required: An array of all the required component names.
+--- rejected: An array of all the components that will be rejected.
+---@param name? string Name for the Filter.
+---@param def table Table containing the Filter Definition
+---@return table filter Parsed filter logic array
+function Filter.parse(name, def)
    local filter = {}
 
    Filter.validate(1, name, def, function (component, reject)
@@ -69,7 +73,11 @@ function Filter.parse (name, def)
    return filter
 end
 
-function Filter.match (e, filter)
+--- Matches an entity against a parsed filter.
+---@param e Entity The entity to check
+---@param filter table The parsed filter table
+---@return boolean matched
+function Filter.match(e, filter)
    for i=#filter, 2, -2 do
       local match = filter[i - 0]
       local name  = filter[i - 1]
@@ -83,7 +91,10 @@ end
 local REQUIRED_METHODS = {"add", "remove", "has", "clear"}
 local VALID_POOL_TYPES = {table=true, userdata=true, lightuserdata=true, cdata=true}
 
-function Filter.isValidPool (name, pool)
+--- Checks if a custom pool is valid.
+---@param name? string Name of the pool/filter
+---@param pool table|userdata The pool to check
+function Filter.isValidPool(name, pool)
    local poolType = type(pool)
    --Check that pool is not nil
    if not VALID_POOL_TYPES[poolType] then
@@ -99,11 +110,11 @@ function Filter.isValidPool (name, pool)
 end
 
 --- Creates a new Filter
--- @string name Name for the Filter.
--- @tparam table definition Table containing the Filter Definition
--- @treturn Filter The new Filter
--- @treturn Pool The associated Pool
-function Filter.new (name, def)
+---@param name? string Name for the Filter.
+---@param def table Table containing the Filter Definition
+---@return Filter filter The new Filter
+---@return table|List pool The associated Pool
+function Filter.new(name, def)
    local pool
 
    if def.constructor then
@@ -113,14 +124,15 @@ function Filter.new (name, def)
       pool = List()
    end
 
-   local filter = Filter.parse(name, def)
+   local parsedFilter = Filter.parse(name, def)
 
+   ---@type Filter
    local filter = setmetatable({
       pool = pool,
 
-      __filter = filter,
+      __filter = parsedFilter,
       __name   = name,
-   
+
       __isFilter = true,
    }, Filter.__mt)
 
@@ -128,13 +140,16 @@ function Filter.new (name, def)
 end
 
 --- Checks if an Entity fulfills the Filter requirements.
--- @tparam Entity e Entity to check
--- @treturn boolean
+---@param e Entity Entity to check
+---@return boolean eligible
 function Filter:eligible(e)
    return Filter.match(e, self.__filter)
 end
 
-function Filter:evaluate (e)
+--- Evaluates an entity against the filter and updates the pool.
+---@param e Entity
+---@return Filter self
+function Filter:evaluate(e)
    local has  = self.pool:has(e)
    local eligible = self:eligible(e)
 
@@ -147,13 +162,12 @@ function Filter:evaluate (e)
    return self
 end
 
-
--- Adds an Entity to the Pool, if it passes the Filter.
--- @param e Entity to add
--- @param bypass Whether to bypass the Filter or not.
--- @treturn Filter self
--- @treturn boolean Whether the entity was added or not.
-function Filter:add (e, bypass)
+--- Adds an Entity to the Pool, if it passes the Filter.
+---@param e Entity Entity to add
+---@param bypass? boolean Whether to bypass the Filter or not.
+---@return Filter self
+---@return boolean added Whether the entity was added or not.
+function Filter:add(e, bypass)
    if not bypass and not self:eligible(e) then
       return self, false
    end
@@ -163,31 +177,30 @@ function Filter:add (e, bypass)
    return self, true
 end
 
--- Remove an Entity from the Pool associated to this Filter.
--- @param e Entity to remove
--- @treturn Filter self
-function Filter:remove (e)
+--- Remove an Entity from the Pool associated to this Filter.
+---@param e Entity Entity to remove
+---@return Filter self
+function Filter:remove(e)
    self.pool:remove(e)
    return self
 end
 
--- Clear the Pool associated to this Filter.
--- @param e Entity to remove
--- @treturn Filter self
-function Filter:clear (e)
-   self.pool:clear(e)
+--- Clear the Pool associated to this Filter.
+---@return Filter self
+function Filter:clear()
+   self.pool:clear()
    return self
 end
 
--- Check if the Pool bound to this System contains the passed Entity
--- @param e Entity to check
--- @treturn boolean Whether the Entity exists.
-function Filter:has (e)
+--- Check if the Pool bound to this System contains the passed Entity
+---@param e Entity Entity to check
+---@return boolean has Whether the Entity exists.
+function Filter:has(e)
    return self.pool:has(e)
 end
 
 --- Gets the name of the Filter
--- @treturn string
+---@return string? name
 function Filter:getName()
    return self.__name
 end

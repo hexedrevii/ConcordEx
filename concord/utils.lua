@@ -22,8 +22,8 @@ end
 --- Accepts a table of paths to Lua files: {"path/to/file_1", "path/to/another/file_2", "etc"}
 --- Accepts a path to a directory with Lua files: "my_files/here"
 --- @param pathOrFiles string|table The table of paths or a path to a directory.
---- @param namespace table A table that will hold the required files
---- @return table The namespace table
+--- @param namespace? table A table that will hold the required files
+--- @return table? The namespace table
 function Utils.loadNamespace(pathOrFiles, namespace)
    if type(pathOrFiles) ~= "string" and type(pathOrFiles) ~= "table" then
        Utils.error(2, "bad argument #1 to 'loadNamespace' (string/table of strings expected, got %s)", type(pathOrFiles))

@@ -38,14 +38,25 @@ function Utils.loadNamespace(pathOrFiles, namespace)
        local files = love.filesystem.getDirectoryItems(pathOrFiles)
 
        for _, file in ipairs(files) do
-            local isFile = love.filesystem.getInfo(pathOrFiles .. "/" .. file).type == "file"
+            local fullPath = pathOrFiles .. "/" .. file
+            local itemInfo = love.filesystem.getInfo(fullPath)
 
-            if isFile and string.match(file, '%.lua$') ~= nil then
-                 local name = file:sub(1, #file - 4)
-                 local path = pathOrFiles.."."..name
+            if itemInfo.type == "file" and string.match(file, '%.lua$') ~= nil then
+                local name = file:sub(1, #file - 4)
 
-                 local value = require(path:gsub("%/", "."))
-                 if namespace then namespace[name] = value end
+                -- Strip '.lua' and convert slashes to dots for require()
+                local requirePath = fullPath:sub(1, #fullPath - 4):gsub("%/", ".")
+                local value = require(requirePath)
+
+                if namespace then namespace[name] = value end
+
+            elseif itemInfo.type == "directory" then
+                if namespace then
+                    namespace[file] = namespace[file] or {}
+                    Utils.loadNamespace(fullPath, namespace[file])
+                else
+                    Utils.loadNamespace(fullPath, nil)
+                end
             end
        end
    elseif type(pathOrFiles) == "table" then
